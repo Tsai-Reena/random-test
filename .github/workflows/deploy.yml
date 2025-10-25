@@ -1,0 +1,94 @@
+name: CI & Deploy (Gradio -> Render)
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+    paths:
+      - "simulator_gradio.py"
+      - "simulator/**"
+      - "requirements.txt"
+      - "system_defaults.json"
+      - "user_defaults.json"
+      - ".github/workflows/deploy-render.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "render-deploy-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: CI (install & smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install gradio pandas
+          fi
+
+      # 輕量 smoke：確認 gradio 存在、檔案可被載入（不真正啟動伺服器）
+      - name: Smoke check
+        run: |
+          python - <<'PY'
+          import importlib.util, sys, pathlib
+          assert importlib.util.find_spec("gradio"), "gradio not installed"
+          # 檢查主檔案存在
+          assert pathlib.Path("simulator_gradio.py").exists(), "simulator_gradio.py missing"
+          print("Smoke OK")
+          PY
+
+  deploy:
+    name: Deploy to Render
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy (main)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+            echo "::error title=Missing secret::RENDER_DEPLOY_HOOK is not set"; exit 1
+          fi
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          echo "Triggered Render deploy for main."
+
+      - name: Trigger Render deploy (dev)
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          if [ -z "${{ secrets.RENDER_DEV_DEPLOY_HOOK }}" ]; then
+            echo "::error title=Missing secret::RENDER_DEV_DEPLOY_HOOK is not set"; exit 1
+          fi
+          curl -fsSL -X POST "${{ secrets.RENDER_DEV_DEPLOY_HOOK }}"
+          echo "Triggered Render deploy for dev."
+
+      - name: Show deployed URL
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ -n "${{ secrets.RENDER_PROD_URL }}" ]; then
+            URL="${{ secrets.RENDER_PROD_URL }}"
+          elif [ "${{ github.ref }}" = "refs/heads/dev" ] && [ -n "${{ secrets.RENDER_DEV_URL }}" ]; then
+            URL="${{ secrets.RENDER_DEV_URL }}"
+          else
+            URL=""
+          fi
+
+          if [ -n "$URL" ]; then
+            echo "URL: $URL"
+            echo "### Deployed URL" >> $GITHUB_STEP_SUMMARY
+            echo "$URL" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No public URL secret provided; skip summary link."
+          fi
