@@ -674,4 +674,10 @@ with gr.Blocks(title="一番賞模擬器", css="""
     auto_seed.change(fn=_toggle_seed_interactive, inputs=[auto_seed], outputs=[seed])
 
 if __name__ == "__main__":
-    demo.launch(favicon_path="icon.png")
+    demo.launch(
+        favicon_path="icon.png",
+        server_name="0.0.0.0",
+        server_port=int(os.environ.get("PORT", 7860)),
+        show_error=True,
+    )
+
