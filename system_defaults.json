@@ -1,0 +1,18 @@
+{
+  "inventory": [
+    ["白色", 10, 100, false],
+    ["黃色", 5, 300, false],
+    ["銀色", 1, 1000, false],
+    ["金色", 1, 5000, false]
+  ],
+  "draw_price": 800,
+  "exchanges": "白色*2->黃色; 黃色*5->銀色",
+  "max_to_color": null,
+  "stop_any": ["金色", "銀色"],
+  "stop_all": {},
+  "stop_immediately": 1,
+  "per_round_draws": 10,
+  "num_runs": 10,
+  "seed": 123,
+  "auto_seed": true
+}
