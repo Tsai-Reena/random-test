@@ -71,6 +71,8 @@ if __name__ == "__main__":
     )
 ```
 
+---
+
 ## License and Intended Use
 
 This project is intended for educational and simulation purposes. For commercial use or extended customization, please contact the project owner.
